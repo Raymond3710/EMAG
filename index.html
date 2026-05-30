@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>EMAG Product Management System</title>
+
+    <style>
+        body{
+            font-family: Arial;
+            max-width:1000px;
+            margin:auto;
+            padding:20px;
+        }
+
+        h1{
+            color:#0073e6;
+        }
+
+        input{
+            padding:8px;
+            margin:5px;
+        }
+
+        button{
+            padding:8px 15px;
+            margin:5px;
+            cursor:pointer;
+        }
+
+        table{
+            width:100%;
+            border-collapse:collapse;
+            margin-top:20px;
+        }
+
+        th,td{
+            border:1px solid #ccc;
+            padding:8px;
+            text-align:left;
+        }
+
+        th{
+            background:#f0f0f0;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>EMAG Product Management System</h1>
+
+<h3>Add Product</h3>
+
+<input id="sku" placeholder="SKU">
+<input id="pnk" placeholder="PNK">
+<input id="ean" placeholder="EAN">
+
+<button onclick="addItem()">Add</button>
+
+<h3>Search</h3>
+
+<input id="search" placeholder="Search SKU / PNK / EAN">
+
+<button onclick="searchItem()">Search</button>
+
+<table>
+<thead>
+<tr>
+<th>SKU</th>
+<th>PNK</th>
+<th>EAN</th>
+</tr>
+</thead>
+
+<tbody id="tableBody">
+</tbody>
+
+</table>
+
+<script>
+
+let products=[];
+
+function addItem(){
+
+    let sku=document.getElementById("sku").value;
+    let pnk=document.getElementById("pnk").value;
+    let ean=document.getElementById("ean").value;
+
+    products.push({
+        sku,
+        pnk,
+        ean
+    });
+
+    refreshTable();
+}
+
+function refreshTable(){
+
+    let body=document.getElementById("tableBody");
+
+    body.innerHTML="";
+
+    products.forEach(item=>{
+
+        body.innerHTML+=`
+        <tr>
+            <td>${item.sku}</td>
+            <td>${item.pnk}</td>
+            <td>${item.ean}</td>
+        </tr>
+        `;
+    });
+}
+
+function searchItem(){
+
+    let key=document.getElementById("search").value.toLowerCase();
+
+    let body=document.getElementById("tableBody");
+
+    body.innerHTML="";
+
+    products
+    .filter(item=>
+
+        item.sku.toLowerCase().includes(key) ||
+        item.pnk.toLowerCase().includes(key) ||
+        item.ean.toLowerCase().includes(key)
+
+    )
+    .forEach(item=>{
+
+        body.innerHTML+=`
+        <tr>
+            <td>${item.sku}</td>
+            <td>${item.pnk}</td>
+            <td>${item.ean}</td>
+        </tr>
+        `;
+    });
+
+}
+
+</script>
+
+</body>
+</html>
