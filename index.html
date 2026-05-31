@@ -1,61 +1,71 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <meta charset="UTF-8">
-  <title>EMAG PNK / EAN Database</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<meta charset="UTF-8">
+<title>EMAG PNK / EAN Database</title>
 
-  <style>
-    body {
-      font-family: Arial;
-      max-width: 1000px;
-      margin: auto;
-      padding: 30px;
-      background: #f7f9fc;
-    }
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
-    h1 {
-      color: #0f5ea8;
-    }
+<style>
+body{
+    font-family:Arial;
+    max-width:1200px;
+    margin:auto;
+    padding:20px;
+    background:#f5f7fa;
+}
 
-    input {
-      padding: 10px;
-      width: 300px;
-      margin: 5px;
-    }
+h1{
+    color:#0f5ea8;
+}
 
-    button {
-      padding: 10px 18px;
-      margin: 5px;
-      cursor: pointer;
-    }
+.box{
+    background:white;
+    padding:20px;
+    margin-top:20px;
+    border-radius:8px;
+    box-shadow:0 0 8px #ddd;
+}
 
-    .box {
-      background: white;
-      padding: 20px;
-      border-radius: 8px;
-      margin-top: 20px;
-      box-shadow: 0 0 8px #ddd;
-    }
+input{
+    padding:8px;
+    margin:5px;
+    width:250px;
+}
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin-top: 15px;
-    }
+button{
+    padding:8px 15px;
+    margin:5px;
+    cursor:pointer;
+}
 
-    th, td {
-      border: 1px solid #ccc;
-      padding: 8px;
-    }
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:15px;
+}
 
-    th {
-      background: #e9eef5;
-    }
+th,td{
+    border:1px solid #ccc;
+    padding:8px;
+}
 
-    .ok { color: green; font-weight: bold; }
-    .warn { color: red; font-weight: bold; }
-  </style>
+th{
+    background:#e9eef5;
+}
+
+.ok{
+    color:green;
+    font-weight:bold;
+}
+
+.warn{
+    color:red;
+    font-weight:bold;
+}
+</style>
+
 </head>
 
 <body>
@@ -63,140 +73,343 @@
 <h1>EMAG PNK / EAN Database</h1>
 
 <div class="box">
-  <h3>Search PNK or EAN</h3>
-  <input id="searchInput" placeholder="Input PNK or EAN">
-  <button onclick="searchData()">Search</button>
+
+<h3>Search</h3>
+
+<input
+id="searchInput"
+placeholder="Input PNK or EAN">
+
+<button onclick="searchData()">
+Search
+</button>
+
+<button onclick="loadAllData()">
+Load All Data
+</button>
+
+<button onclick="exportExcel()">
+Export Excel
+</button>
+
 </div>
 
 <div class="box">
-  <h3>Add New Mapping</h3>
-  <input id="newPnk" placeholder="PNK">
-  <input id="newEan" placeholder="EAN">
-  <input id="productName" placeholder="Product Name">
-  <input id="storeName" placeholder="Store Name" value="PoMoLA">
-  <button onclick="addMapping()">Add Mapping</button>
+
+<h3>Add Mapping</h3>
+
+<input id="newPnk" placeholder="PNK">
+
+<input id="newEan" placeholder="EAN">
+
+<input id="productName" placeholder="Product Name">
+
+<input id="storeName" value="PoMoLA" placeholder="Store Name">
+
+<button onclick="addMapping()">
+Add Mapping
+</button>
+
 </div>
 
 <div class="box">
-  <h3>Result</h3>
-  <div id="message"></div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>PNK</th>
-        <th>EAN</th>
-        <th>Product Name</th>
-        <th>Store Name</th>
-        <th>Created Time</th>
-      </tr>
-    </thead>
-    <tbody id="resultBody"></tbody>
-  </table>
+<h3>Result</h3>
+
+<div id="message"></div>
+
+<table>
+
+<thead>
+
+<tr>
+<th>PNK</th>
+<th>EAN</th>
+<th>Product Name</th>
+<th>Store Name</th>
+<th>Created Time</th>
+</tr>
+
+</thead>
+
+<tbody id="resultBody"></tbody>
+
+</table>
+
 </div>
 
 <script>
-const SUPABASE_URL = "https://wsayglrvpiitzvkboqcv.supabase.co";
-const SUPABASE_KEY = "sb_publishable_iKiV9GLuCNbs07S6UkvkXg_KpDPo1bx";
 
-const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+const SUPABASE_URL =
+"https://wsayglrvpiitzvkboqcv.supabase.co";
 
-async function searchData() {
-  const key = document.getElementById("searchInput").value.trim();
+const SUPABASE_KEY =
+"sb_publishable_iKiV9GLuCNbs07S6UkvkXg_KpDPo1bx";
 
-  if (!key) {
-    showMessage("Please input PNK or EAN.", "warn");
-    return;
-  }
+const db =
+supabase.createClient(
+SUPABASE_URL,
+SUPABASE_KEY
+);
 
-  const { data, error } = await db
-    .from("pnk_ean_map")
-    .select("*")
-    .or(`pnk.eq.${key},ean.eq.${key}`);
+let currentData=[];
 
-  if (error) {
-    showMessage("Search error: " + error.message, "warn");
-    return;
-  }
+async function searchData(){
 
-  renderTable(data);
+const key=
+document
+.getElementById("searchInput")
+.value
+.trim();
 
-  if (data.length === 0) {
-    showMessage("No matching PNK or EAN found.", "warn");
-  } else {
-    showMessage("Found " + data.length + " record(s).", "ok");
-  }
+if(!key){
+
+showMessage(
+"Please input PNK or EAN.",
+"warn"
+);
+
+return;
 }
 
-async function addMapping() {
-  const pnk = document.getElementById("newPnk").value.trim();
-  const ean = document.getElementById("newEan").value.trim();
-  const product_name = document.getElementById("productName").value.trim();
-  const store_name = document.getElementById("storeName").value.trim();
+const {data,error}=await db
+.from("pnk_ean_map")
+.select("*")
+.or(`pnk.eq.${key},ean.eq.${key}`);
 
-  if (!pnk || !ean) {
-    showMessage("PNK and EAN are required.", "warn");
-    return;
-  }
+if(error){
 
-  const { data: existing, error: checkError } = await db
-    .from("pnk_ean_map")
-    .select("*")
-    .or(`pnk.eq.${pnk},ean.eq.${ean}`);
+showMessage(
+error.message,
+"warn"
+);
 
-  if (checkError) {
-    showMessage("Check error: " + checkError.message, "warn");
-    return;
-  }
-
-  if (existing.length > 0) {
-    renderTable(existing);
-    showMessage("Duplicate found. This PNK or EAN already exists.", "warn");
-    return;
-  }
-
-  const { data, error } = await db
-    .from("pnk_ean_map")
-    .insert([
-      {
-        pnk: pnk,
-        ean: ean,
-        product_name: product_name || null,
-        store_name: store_name || null
-      }
-    ])
-    .select();
-
-  if (error) {
-    showMessage("Add error: " + error.message, "warn");
-    return;
-  }
-
-  renderTable(data);
-  showMessage("New PNK / EAN mapping added successfully.", "ok");
+return;
 }
 
-function renderTable(data) {
-  const body = document.getElementById("resultBody");
-  body.innerHTML = "";
+currentData=data;
 
-  data.forEach(item => {
-    body.innerHTML += `
-      <tr>
-        <td>${item.pnk || ""}</td>
-        <td>${item.ean || ""}</td>
-        <td>${item.product_name || ""}</td>
-        <td>${item.store_name || ""}</td>
-        <td>${item.created_time || ""}</td>
-      </tr>
-    `;
-  });
+renderTable(data);
+
+if(data.length===0){
+
+showMessage(
+"No matching record.",
+"warn"
+);
+
+}else{
+
+showMessage(
+"Found "+data.length+" record(s).",
+"ok"
+);
+
+}
 }
 
-function showMessage(text, type) {
-  document.getElementById("message").innerHTML =
-    `<p class="${type}">${text}</p>`;
+async function loadAllData(){
+
+const {data,error}=await db
+.from("pnk_ean_map")
+.select("*")
+.order("id",{ascending:true});
+
+if(error){
+
+showMessage(
+error.message,
+"warn"
+);
+
+return;
 }
+
+currentData=data;
+
+renderTable(data);
+
+showMessage(
+"Loaded "+data.length+" record(s).",
+"ok"
+);
+
+}
+
+async function addMapping(){
+
+const pnk=
+document.getElementById("newPnk").value.trim();
+
+const ean=
+document.getElementById("newEan").value.trim();
+
+const product_name=
+document.getElementById("productName").value.trim();
+
+const store_name=
+document.getElementById("storeName").value.trim();
+
+if(!pnk || !ean){
+
+showMessage(
+"PNK and EAN required.",
+"warn"
+);
+
+return;
+}
+
+const {data:exist,error:checkError}=await db
+.from("pnk_ean_map")
+.select("*")
+.or(`pnk.eq.${pnk},ean.eq.${ean}`);
+
+if(checkError){
+
+showMessage(
+checkError.message,
+"warn"
+);
+
+return;
+}
+
+if(exist.length>0){
+
+renderTable(exist);
+
+showMessage(
+"Duplicate PNK or EAN.",
+"warn"
+);
+
+return;
+}
+
+const {data,error}=await db
+.from("pnk_ean_map")
+.insert([
+{
+pnk,
+ean,
+product_name,
+store_name
+}
+])
+.select();
+
+if(error){
+
+showMessage(
+error.message,
+"warn"
+);
+
+return;
+}
+
+currentData=data;
+
+renderTable(data);
+
+showMessage(
+"Added successfully.",
+"ok"
+);
+
+}
+
+function renderTable(data){
+
+const body=
+document.getElementById("resultBody");
+
+body.innerHTML="";
+
+data.forEach(item=>{
+
+body.innerHTML+=`
+
+<tr>
+
+<td>${item.pnk||""}</td>
+
+<td>${item.ean||""}</td>
+
+<td>${item.product_name||""}</td>
+
+<td>${item.store_name||""}</td>
+
+<td>${item.created_time||""}</td>
+
+</tr>
+
+`;
+
+});
+
+}
+
+function exportExcel(){
+
+if(currentData.length===0){
+
+showMessage(
+"Load data first.",
+"warn"
+);
+
+return;
+}
+
+const exportData=
+currentData.map(row=>({
+
+PNK:row.pnk,
+
+EAN:row.ean,
+
+PRODUCT_NAME:
+row.product_name,
+
+STORE_NAME:
+row.store_name,
+
+CREATED_TIME:
+row.created_time
+
+}));
+
+const ws=
+XLSX.utils.json_to_sheet(exportData);
+
+const wb=
+XLSX.utils.book_new();
+
+XLSX.utils.book_append_sheet(
+wb,
+ws,
+"EMAG"
+);
+
+XLSX.writeFile(
+wb,
+"EMAG_PNK_EAN.xlsx"
+);
+
+}
+
+function showMessage(text,type){
+
+document.getElementById("message").innerHTML=
+
+`<p class="${type}">
+${text}
+</p>`;
+
+}
+
 </script>
 
 </body>
