@@ -15,11 +15,7 @@ body{
     padding:20px;
     background:#f5f7fa;
 }
-
-h1{
-    color:#0f5ea8;
-}
-
+h1{color:#0f5ea8;}
 .box{
     background:white;
     padding:20px;
@@ -27,45 +23,29 @@ h1{
     border-radius:8px;
     box-shadow:0 0 8px #ddd;
 }
-
-input{
+input,select{
     padding:8px;
     margin:5px;
     width:250px;
 }
-
 button{
     padding:8px 15px;
     margin:5px;
     cursor:pointer;
 }
-
 table{
     width:100%;
     border-collapse:collapse;
     margin-top:15px;
 }
-
 th,td{
     border:1px solid #ccc;
     padding:8px;
 }
-
-th{
-    background:#e9eef5;
-}
-
-.ok{
-    color:green;
-    font-weight:bold;
-}
-
-.warn{
-    color:red;
-    font-weight:bold;
-}
+th{background:#e9eef5;}
+.ok{color:green;font-weight:bold;}
+.warn{color:red;font-weight:bold;}
 </style>
-
 </head>
 
 <body>
@@ -73,55 +53,38 @@ th{
 <h1>EMAG PNK / EAN Database</h1>
 
 <div class="box">
-
 <h3>Search</h3>
 
-<input
-id="searchInput"
-placeholder="Input PNK or EAN">
+<input id="searchInput" placeholder="Input PNK or EAN">
 
-<button onclick="searchData()">
-Search
-</button>
+<select id="storeFilter">
+    <option value="">All Stores</option>
+    <option value="PoMoLA">PoMoLA</option>
+    <option value="Miaopin">Miaopin</option>
+</select>
 
-<button onclick="loadAllData()">
-Load All Data
-</button>
-
-<button onclick="exportExcel()">
-Export Excel
-</button>
-
+<button onclick="searchData()">Search</button>
+<button onclick="loadAllData()">Load All Data</button>
+<button onclick="exportExcel()">Export Excel</button>
 </div>
 
 <div class="box">
-
 <h3>Add Mapping</h3>
 
 <input id="newPnk" placeholder="PNK">
-
 <input id="newEan" placeholder="EAN">
-
 <input id="productName" placeholder="Product Name">
-
 <input id="storeName" value="PoMoLA" placeholder="Store Name">
 
-<button onclick="addMapping()">
-Add Mapping
-</button>
-
+<button onclick="addMapping()">Add Mapping</button>
 </div>
 
 <div class="box">
-
 <h3>Result</h3>
-
 <div id="message"></div>
 
 <table>
-
 <thead>
-
 <tr>
 <th>PNK</th>
 <th>EAN</th>
@@ -129,287 +92,168 @@ Add Mapping
 <th>Store Name</th>
 <th>Created Time</th>
 </tr>
-
 </thead>
-
 <tbody id="resultBody"></tbody>
-
 </table>
-
 </div>
 
 <script>
+const SUPABASE_URL = "https://wsayglrvpiitzvkboqcv.supabase.co";
+const SUPABASE_KEY = "sb_publishable_iKiV9GLuCNbs07S6UkvkXg_KpDPo1bx";
 
-const SUPABASE_URL =
-"https://wsayglrvpiitzvkboqcv.supabase.co";
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const SUPABASE_KEY =
-"sb_publishable_iKiV9GLuCNbs07S6UkvkXg_KpDPo1bx";
-
-const db =
-supabase.createClient(
-SUPABASE_URL,
-SUPABASE_KEY
-);
-
-let currentData=[];
+let currentData = [];
 
 async function searchData(){
+    const key = document.getElementById("searchInput").value.trim();
+    const store = document.getElementById("storeFilter").value;
 
-const key=
-document
-.getElementById("searchInput")
-.value
-.trim();
+    if(!key){
+        showMessage("Please input PNK or EAN.", "warn");
+        return;
+    }
 
-if(!key){
+    let query = db
+        .from("pnk_ean_map")
+        .select("*")
+        .or(`pnk.eq.${key},ean.eq.${key}`);
 
-showMessage(
-"Please input PNK or EAN.",
-"warn"
-);
+    if(store){
+        query = query.eq("store_name", store);
+    }
 
-return;
-}
+    const {data, error} = await query;
 
-const {data,error}=await db
-.from("pnk_ean_map")
-.select("*")
-.or(`pnk.eq.${key},ean.eq.${key}`);
+    if(error){
+        showMessage(error.message, "warn");
+        return;
+    }
 
-if(error){
+    currentData = data;
+    renderTable(data);
 
-showMessage(
-error.message,
-"warn"
-);
-
-return;
-}
-
-currentData=data;
-
-renderTable(data);
-
-if(data.length===0){
-
-showMessage(
-"No matching record.",
-"warn"
-);
-
-}else{
-
-showMessage(
-"Found "+data.length+" record(s).",
-"ok"
-);
-
-}
+    if(data.length === 0){
+        showMessage("No matching record.", "warn");
+    }else{
+        showMessage("Found " + data.length + " record(s).", "ok");
+    }
 }
 
 async function loadAllData(){
+    const store = document.getElementById("storeFilter").value;
 
-const {data,error}=await db
-.from("pnk_ean_map")
-.select("*")
-.order("id",{ascending:true});
+    let query = db
+        .from("pnk_ean_map")
+        .select("*");
 
-if(error){
+    if(store){
+        query = query.eq("store_name", store);
+    }
 
-showMessage(
-error.message,
-"warn"
-);
+    const {data, error} = await query.order("id", {ascending:true});
 
-return;
-}
+    if(error){
+        showMessage(error.message, "warn");
+        return;
+    }
 
-currentData=data;
+    currentData = data;
+    renderTable(data);
 
-renderTable(data);
-
-showMessage(
-"Loaded "+data.length+" record(s).",
-"ok"
-);
-
+    showMessage("Loaded " + data.length + " record(s).", "ok");
 }
 
 async function addMapping(){
+    const pnk = document.getElementById("newPnk").value.trim();
+    const ean = document.getElementById("newEan").value.trim();
+    const product_name = document.getElementById("productName").value.trim();
+    const store_name = document.getElementById("storeName").value.trim();
 
-const pnk=
-document.getElementById("newPnk").value.trim();
+    if(!pnk || !ean){
+        showMessage("PNK and EAN required.", "warn");
+        return;
+    }
 
-const ean=
-document.getElementById("newEan").value.trim();
+    const {data: exist, error: checkError} = await db
+        .from("pnk_ean_map")
+        .select("*")
+        .or(`pnk.eq.${pnk},ean.eq.${ean}`);
 
-const product_name=
-document.getElementById("productName").value.trim();
+    if(checkError){
+        showMessage(checkError.message, "warn");
+        return;
+    }
 
-const store_name=
-document.getElementById("storeName").value.trim();
+    if(exist.length > 0){
+        currentData = exist;
+        renderTable(exist);
+        showMessage("Duplicate PNK or EAN.", "warn");
+        return;
+    }
 
-if(!pnk || !ean){
+    const {data, error} = await db
+        .from("pnk_ean_map")
+        .insert([{
+            pnk: pnk,
+            ean: ean,
+            product_name: product_name || null,
+            store_name: store_name || null
+        }])
+        .select();
 
-showMessage(
-"PNK and EAN required.",
-"warn"
-);
+    if(error){
+        showMessage(error.message, "warn");
+        return;
+    }
 
-return;
-}
-
-const {data:exist,error:checkError}=await db
-.from("pnk_ean_map")
-.select("*")
-.or(`pnk.eq.${pnk},ean.eq.${ean}`);
-
-if(checkError){
-
-showMessage(
-checkError.message,
-"warn"
-);
-
-return;
-}
-
-if(exist.length>0){
-
-renderTable(exist);
-
-showMessage(
-"Duplicate PNK or EAN.",
-"warn"
-);
-
-return;
-}
-
-const {data,error}=await db
-.from("pnk_ean_map")
-.insert([
-{
-pnk,
-ean,
-product_name,
-store_name
-}
-])
-.select();
-
-if(error){
-
-showMessage(
-error.message,
-"warn"
-);
-
-return;
-}
-
-currentData=data;
-
-renderTable(data);
-
-showMessage(
-"Added successfully.",
-"ok"
-);
-
+    currentData = data;
+    renderTable(data);
+    showMessage("Added successfully.", "ok");
 }
 
 function renderTable(data){
+    const body = document.getElementById("resultBody");
+    body.innerHTML = "";
 
-const body=
-document.getElementById("resultBody");
-
-body.innerHTML="";
-
-data.forEach(item=>{
-
-body.innerHTML+=`
-
-<tr>
-
-<td>${item.pnk||""}</td>
-
-<td>${item.ean||""}</td>
-
-<td>${item.product_name||""}</td>
-
-<td>${item.store_name||""}</td>
-
-<td>${item.created_time||""}</td>
-
-</tr>
-
-`;
-
-});
-
+    data.forEach(item=>{
+        body.innerHTML += `
+        <tr>
+            <td>${item.pnk || ""}</td>
+            <td>${item.ean || ""}</td>
+            <td>${item.product_name || ""}</td>
+            <td>${item.store_name || ""}</td>
+            <td>${item.created_time || ""}</td>
+        </tr>
+        `;
+    });
 }
 
 function exportExcel(){
+    if(currentData.length === 0){
+        showMessage("Load data first.", "warn");
+        return;
+    }
 
-if(currentData.length===0){
+    const exportData = currentData.map(row=>({
+        PNK: row.pnk,
+        EAN: row.ean,
+        PRODUCT_NAME: row.product_name,
+        STORE_NAME: row.store_name,
+        CREATED_TIME: row.created_time
+    }));
 
-showMessage(
-"Load data first.",
-"warn"
-);
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
 
-return;
-}
-
-const exportData=
-currentData.map(row=>({
-
-PNK:row.pnk,
-
-EAN:row.ean,
-
-PRODUCT_NAME:
-row.product_name,
-
-STORE_NAME:
-row.store_name,
-
-CREATED_TIME:
-row.created_time
-
-}));
-
-const ws=
-XLSX.utils.json_to_sheet(exportData);
-
-const wb=
-XLSX.utils.book_new();
-
-XLSX.utils.book_append_sheet(
-wb,
-ws,
-"EMAG"
-);
-
-XLSX.writeFile(
-wb,
-"EMAG_PNK_EAN.xlsx"
-);
-
+    XLSX.utils.book_append_sheet(wb, ws, "EMAG");
+    XLSX.writeFile(wb, "EMAG_PNK_EAN.xlsx");
 }
 
 function showMessage(text,type){
-
-document.getElementById("message").innerHTML=
-
-`<p class="${type}">
-${text}
-</p>`;
-
+    document.getElementById("message").innerHTML =
+    `<p class="${type}">${text}</p>`;
 }
-
 </script>
 
 </body>
