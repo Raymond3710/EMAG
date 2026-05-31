@@ -1,148 +1,202 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8">
-    <title>EMAG Product Management System</title>
+  <meta charset="UTF-8">
+  <title>EMAG PNK / EAN Database</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-    <style>
-        body{
-            font-family: Arial;
-            max-width:1000px;
-            margin:auto;
-            padding:20px;
-        }
+  <style>
+    body {
+      font-family: Arial;
+      max-width: 1000px;
+      margin: auto;
+      padding: 30px;
+      background: #f7f9fc;
+    }
 
-        h1{
-            color:#0073e6;
-        }
+    h1 {
+      color: #0f5ea8;
+    }
 
-        input{
-            padding:8px;
-            margin:5px;
-        }
+    input {
+      padding: 10px;
+      width: 300px;
+      margin: 5px;
+    }
 
-        button{
-            padding:8px 15px;
-            margin:5px;
-            cursor:pointer;
-        }
+    button {
+      padding: 10px 18px;
+      margin: 5px;
+      cursor: pointer;
+    }
 
-        table{
-            width:100%;
-            border-collapse:collapse;
-            margin-top:20px;
-        }
+    .box {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+      box-shadow: 0 0 8px #ddd;
+    }
 
-        th,td{
-            border:1px solid #ccc;
-            padding:8px;
-            text-align:left;
-        }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
 
-        th{
-            background:#f0f0f0;
-        }
-    </style>
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+    }
+
+    th {
+      background: #e9eef5;
+    }
+
+    .ok { color: green; font-weight: bold; }
+    .warn { color: red; font-weight: bold; }
+  </style>
 </head>
 
 <body>
 
-<h1>EMAG Product Management System</h1>
+<h1>EMAG PNK / EAN Database</h1>
 
-<h3>Add Product</h3>
+<div class="box">
+  <h3>Search PNK or EAN</h3>
+  <input id="searchInput" placeholder="Input PNK or EAN">
+  <button onclick="searchData()">Search</button>
+</div>
 
-<input id="sku" placeholder="SKU">
-<input id="pnk" placeholder="PNK">
-<input id="ean" placeholder="EAN">
+<div class="box">
+  <h3>Add New Mapping</h3>
+  <input id="newPnk" placeholder="PNK">
+  <input id="newEan" placeholder="EAN">
+  <input id="productName" placeholder="Product Name">
+  <input id="storeName" placeholder="Store Name" value="PoMoLA">
+  <button onclick="addMapping()">Add Mapping</button>
+</div>
 
-<button onclick="addItem()">Add</button>
+<div class="box">
+  <h3>Result</h3>
+  <div id="message"></div>
 
-<h3>Search</h3>
-
-<input id="search" placeholder="Search SKU / PNK / EAN">
-
-<button onclick="searchItem()">Search</button>
-
-<table>
-<thead>
-<tr>
-<th>SKU</th>
-<th>PNK</th>
-<th>EAN</th>
-</tr>
-</thead>
-
-<tbody id="tableBody">
-</tbody>
-
-</table>
+  <table>
+    <thead>
+      <tr>
+        <th>PNK</th>
+        <th>EAN</th>
+        <th>Product Name</th>
+        <th>Store Name</th>
+        <th>Created Time</th>
+      </tr>
+    </thead>
+    <tbody id="resultBody"></tbody>
+  </table>
+</div>
 
 <script>
+const SUPABASE_URL = "https://wsayglrvpiitzvkboqcv.supabase.co";
+const SUPABASE_KEY = "sb_publishable_iKiV9GLuCNbs07S6UkvkXg_KpDPo1bx";
 
-let products=[];
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-function addItem(){
+async function searchData() {
+  const key = document.getElementById("searchInput").value.trim();
 
-    let sku=document.getElementById("sku").value;
-    let pnk=document.getElementById("pnk").value;
-    let ean=document.getElementById("ean").value;
+  if (!key) {
+    showMessage("Please input PNK or EAN.", "warn");
+    return;
+  }
 
-    products.push({
-        sku,
-        pnk,
-        ean
-    });
+  const { data, error } = await db
+    .from("pnk_ean_map")
+    .select("*")
+    .or(`pnk.eq.${key},ean.eq.${key}`);
 
-    refreshTable();
+  if (error) {
+    showMessage("Search error: " + error.message, "warn");
+    return;
+  }
+
+  renderTable(data);
+
+  if (data.length === 0) {
+    showMessage("No matching PNK or EAN found.", "warn");
+  } else {
+    showMessage("Found " + data.length + " record(s).", "ok");
+  }
 }
 
-function refreshTable(){
+async function addMapping() {
+  const pnk = document.getElementById("newPnk").value.trim();
+  const ean = document.getElementById("newEan").value.trim();
+  const product_name = document.getElementById("productName").value.trim();
+  const store_name = document.getElementById("storeName").value.trim();
 
-    let body=document.getElementById("tableBody");
+  if (!pnk || !ean) {
+    showMessage("PNK and EAN are required.", "warn");
+    return;
+  }
 
-    body.innerHTML="";
+  const { data: existing, error: checkError } = await db
+    .from("pnk_ean_map")
+    .select("*")
+    .or(`pnk.eq.${pnk},ean.eq.${ean}`);
 
-    products.forEach(item=>{
+  if (checkError) {
+    showMessage("Check error: " + checkError.message, "warn");
+    return;
+  }
 
-        body.innerHTML+=`
-        <tr>
-            <td>${item.sku}</td>
-            <td>${item.pnk}</td>
-            <td>${item.ean}</td>
-        </tr>
-        `;
-    });
+  if (existing.length > 0) {
+    renderTable(existing);
+    showMessage("Duplicate found. This PNK or EAN already exists.", "warn");
+    return;
+  }
+
+  const { data, error } = await db
+    .from("pnk_ean_map")
+    .insert([
+      {
+        pnk: pnk,
+        ean: ean,
+        product_name: product_name || null,
+        store_name: store_name || null
+      }
+    ])
+    .select();
+
+  if (error) {
+    showMessage("Add error: " + error.message, "warn");
+    return;
+  }
+
+  renderTable(data);
+  showMessage("New PNK / EAN mapping added successfully.", "ok");
 }
 
-function searchItem(){
+function renderTable(data) {
+  const body = document.getElementById("resultBody");
+  body.innerHTML = "";
 
-    let key=document.getElementById("search").value.toLowerCase();
-
-    let body=document.getElementById("tableBody");
-
-    body.innerHTML="";
-
-    products
-    .filter(item=>
-
-        item.sku.toLowerCase().includes(key) ||
-        item.pnk.toLowerCase().includes(key) ||
-        item.ean.toLowerCase().includes(key)
-
-    )
-    .forEach(item=>{
-
-        body.innerHTML+=`
-        <tr>
-            <td>${item.sku}</td>
-            <td>${item.pnk}</td>
-            <td>${item.ean}</td>
-        </tr>
-        `;
-    });
-
+  data.forEach(item => {
+    body.innerHTML += `
+      <tr>
+        <td>${item.pnk || ""}</td>
+        <td>${item.ean || ""}</td>
+        <td>${item.product_name || ""}</td>
+        <td>${item.store_name || ""}</td>
+        <td>${item.created_time || ""}</td>
+      </tr>
+    `;
+  });
 }
 
+function showMessage(text, type) {
+  document.getElementById("message").innerHTML =
+    `<p class="${type}">${text}</p>`;
+}
 </script>
 
 </body>
